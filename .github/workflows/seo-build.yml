@@ -1,0 +1,81 @@
+name: Build Google pages, sitemaps and shopping feed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'products.json'
+      - 'platform/products.json'
+      - 'platform/directory.json'
+      - 'seo/**'
+      - '.github/workflows/seo-build.yml'
+  workflow_run:                       # also rebuild after the photo analysis has updated its notes
+    workflows: ['Analyse product photos']
+    types: [completed]
+  schedule:
+    - cron: '30 21 * * *'            # every day at 03:00 India time
+  workflow_dispatch:                  # lets you press "Run workflow" yourself
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  issues: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      stale: ${{ steps.fresh.outputs.stale }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build pages, sitemaps and feed
+        run: |
+          mkdir -p _site
+          tar --exclude='./.git' --exclude='./.github' --exclude='./_site' -cf - . | tar -xf - -C _site
+          node seo/build-seo.mjs . _site
+          cat _site/seo-report.txt
+          cp _site/seo-report.txt "$GITHUB_STEP_SUMMARY"
+      - name: Check the product feed is still being refreshed
+        id: fresh
+        run: |
+          node -e "
+            const fs = require('fs'); let stale = false, note = 'no health.json yet (the platform has not published one)';
+            try { const h = JSON.parse(fs.readFileSync('_site/platform/health.json', 'utf8')); const hrs = (Date.now() - Date.parse(h.at)) / 36e5; note = 'last feed refresh ' + Math.round(hrs) + ' hours ago'; stale = hrs > 48; } catch (e) {}
+            console.log(note); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'stale=' + stale + '\n');
+            if (stale) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '\nWARNING: ' + note + '. The Google Sheet job that publishes your feeds may have stopped.\n');
+          "
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  alert:                              # opens an issue (GitHub emails you) when the build breaks or the feed has gone stale
+    needs: [build, deploy]
+    if: always() && (needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.build.outputs.stale == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Google pages need attention"
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number')" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "The automatic Google pages job reported a problem (build: ${{ needs.build.result }}, publish: ${{ needs.deploy.result }}, feed stale: ${{ needs.build.outputs.stale }}). Open the Actions tab, click the latest run and read the red step. Product pages stay online as they were until it is fixed."
+          fi
