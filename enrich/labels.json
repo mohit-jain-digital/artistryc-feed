@@ -1,0 +1,15 @@
+{
+  "work": {
+    "embroidery": "heavy embroidery work", "zari": "zari woven work", "sequins": "sequin work", "mirror work": "mirror work",
+    "thread work": "thread embroidery", "stone work": "stone and bead work", "gota patti": "gota patti work",
+    "floral print": "floral print", "block print": "block print", "bandhani": "bandhani tie dye", "digital print": "digital print",
+    "solid": "plain solid fabric with no pattern", "stripes": "striped pattern", "lace": "lace border"
+  },
+  "occasion": {
+    "wedding": "a bridal wedding outfit", "festive": "a festive occasion outfit", "party": "a party wear outfit",
+    "daily wear": "a casual daily wear outfit", "office": "a formal office wear outfit", "haldi or mehendi": "a bright haldi mehendi function outfit"
+  },
+  "style": {
+    "traditional": "a traditional Indian outfit", "indo-western": "an indo-western fusion outfit", "contemporary": "a modern contemporary outfit"
+  }
+}
