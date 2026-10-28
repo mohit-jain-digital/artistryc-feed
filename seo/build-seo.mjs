@@ -54,7 +54,7 @@ function lqSvgUri(lq) { // a tiny blurred colour mosaic (12 cells) drawn as an S
 }
 function productSlug(item) {
   var t = slugify(cleanTitle(item.title)).slice(0, 60).replace(/-+$/, '');
-  var k = String(item.id).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
+  var k = String(item.id).toLowerCase().replace(/[^a-z0-9]/g, '').slice(-12);   // the END of the id: ids such as ARTISTRYC-20260919-204654-5068 all START the same, only their end tells them apart
   return (t ? t + '-' : '') + k;
 }
 // <<SHARED-END>>
